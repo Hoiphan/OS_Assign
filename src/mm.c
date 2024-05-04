@@ -117,23 +117,35 @@ for (; pgit < pgnum; ++pgit) {
  * @frm_lst   : frame list
  */
 
-int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struct** frm_lst)
-{
+int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struct **frm_lst) {
   int pgit, fpn;
-  //struct framephy_struct *newfp_str;
+  struct framephy_struct *newfp_str = NULL;
 
-  for(pgit = 0; pgit < req_pgnum; pgit++)
-  {
-    if(MEMPHY_get_freefp(caller->mram, &fpn) == 0)
-   {
-     
-   } else {  // ERROR CODE of obtaining somes but not enough frames
-   } 
- }
+  for (pgit = 0; pgit < req_pgnum; pgit++) {
+    newfp_str = (struct framephy_struct *)malloc(sizeof(struct framephy_struct));
+    if (newfp_str == NULL) {
+      return -1;
+    }
+    if (MEMPHY_get_freefp(caller->mram, &fpn) == 0) {
+      newfp_str->fpn = fpn;
+    } else {
+      int vicpgn, swpfpn;
+      if (find_victim_page(caller->mm, &vicpgn) == -1 || MEMPHY_get_freefp(caller->active_mswp, &swpfpn) == -1) {
+        free(newfp_str);  
+        return -1;        
+      }
+      uint32_t vicpte = caller->mm->pgd[vicpgn];
+      int vicfpn = PAGING_FPN(vicpte);
+      __swap_cp_page(caller->mram, vicfpn, caller->active_mswp, swpfpn);
+      pte_set_swap(&caller->mm->pgd[vicpgn], 0, swpfpn);
+      newfp_str->fpn = vicfpn;
+    }
+    newfp_str->fp_next = *frm_lst;
+    *frm_lst = newfp_str;
+  }
 
-  return 0;
+  return 0;  // Successful allocation
 }
-
 
 /* 
  * vm_map_ram - do the mapping all vm are to ram storage device
