@@ -19,16 +19,12 @@
 int enlist_vm_freerg_list(struct mm_struct *mm, struct vm_rg_struct *rg_elmt)
 {
   struct vm_rg_struct *rg_node = mm->mmap->vm_freerg_list;
-
   if (rg_elmt->rg_start >= rg_elmt->rg_end)
     return -1;
-
   if (rg_node != NULL)
     rg_elmt->rg_next = rg_node;
-
   /* Enlist the new region */
   mm->mmap->vm_freerg_list = rg_elmt;
-
   return 0;
 }
 
@@ -66,7 +62,6 @@ struct vm_rg_struct *get_symrg_byid(struct mm_struct *mm, int rgid)
 {
   if(rgid < 0 || rgid > PAGING_MAX_SYMTBL_SZ)
     return NULL;
-
   return &mm->symrgtbl[rgid];
 }
 
@@ -82,7 +77,6 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 {
   /*Allocate at the toproof */
   struct vm_rg_struct rgnode;
-
   if (get_free_vmrg_area(caller, vmaid, size, &rgnode) == 0)
   {
     caller->mm->symrgtbl[rgid].rg_start = rgnode.rg_start;
@@ -97,25 +91,25 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
   int inc_sz = PAGING_PAGE_ALIGNSZ(size);
   //int inc_limit_ret
-    int old_sbrk = cur_vma->sbrk;
+int old_sbrk = cur_vma->sbrk;
   /* TODO INCREASE THE LIMIT
    * inc_vma_limit(caller, vmaid, inc_sz)
    */
-   if (old_sbrk + size > cur_vma->vm_end)
+  if (old_sbrk + size > cur_vma->vm_end)
+{
+    int inc_limit_ret = inc_vma_limit(caller, vmaid, inc_sz);
+    if (inc_limit_ret < 0)
     {
-        if (inc_vma_limit(caller, vmaid, inc_sz) < 0)
-        {
-            printf("Cannot increase the vm limit!\n");
-            return -1;
-        }
+        printf("Cannot increase the virtual memory limit!\n");
+        return -1;
     }
+}
     cur_vma->sbrk += size;
   /*Successful increase limit */
   caller->mm->symrgtbl[rgid].rg_start = old_sbrk;
   caller->mm->symrgtbl[rgid].rg_end = old_sbrk + size;
 
   *alloc_addr = old_sbrk;
-
   return 0;
 }
 
@@ -129,16 +123,14 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 int __free(struct pcb_t *caller, int vmaid, int rgid)
 {
   struct vm_rg_struct *rgnode = malloc(sizeof(struct vm_rg_struct));
-
   if(rgid < 0 || rgid > PAGING_MAX_SYMTBL_SZ)
     return -1;
-
-
   /* TODO: Manage the collect freed region to freerg_list */
   rgnode = get_symrg_byid(caller->mm, rgid);
   /*enlist the obsoleted memory region */
+  rgnode.rg_start = rgnode.rg_end = -1;
+  rgnode.rg_next = NULL;
   enlist_vm_freerg_list(caller->mm, rgnode);
-
   return 0;
 }
 
@@ -150,7 +142,6 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
 int pgalloc(struct pcb_t *proc, uint32_t size, uint32_t reg_index)
 {
   int addr;
-
   /* By default using vmaid = 0 */
   return __alloc(proc, 0, reg_index, size, &addr);
 }
@@ -176,7 +167,6 @@ int pgfree_data(struct pcb_t *proc, uint32_t reg_index)
 int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
 {
   uint32_t pte = mm->pgd[pgn];
- 
   if (!PAGING_PAGE_PRESENT(pte))
   { /* Page is not online, make it actively living */
     int vicpgn, swpfpn; 
@@ -184,12 +174,24 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
      uint32_t vicpte;
 
     int tgtfpn = PAGING_SWP(pte);//the target frame storing our variable
-
     /* TODO: Play with your paging theory here */
     /* Find victim page */
     if (find_victim_page(caller->mm, &vicpgn) < 0) return -1;
-    vicpte = mm->pgd[vicpgn]; 
-    vicfpn = PAGING_SWP(vicpte);
+  while (vicpgn == pgn)
+        {
+            if (find_victim_page(caller->mm, &vicpgn) < 0)
+                return -1;
+        }
+        vicpte = caller->mm->pgd[vicpgn];
+        vicfpn = PAGING_FPN(vicpte);
+	    
+	int i = 0;
+        struct memphy_struct *mswp = (struct memphy_struct *)caller->mswp;
+        for (i = 0; i < PAGING_MAX_MMSWP; i++)
+        {
+            if (mswp + i == caller->active_mswp)
+                break;
+        }
     /* Get free frame in MEMSWP */
     if (MEMPHY_get_freefp(caller->active_mswp, &swpfpn) < 0) return -1;
     
@@ -278,9 +280,7 @@ int __read(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE *data)
 
   if(currg == NULL || cur_vma == NULL) /* Invalid memory identify */
 	  return -1;
-
   pg_getval(caller->mm, currg->rg_start + offset, data, caller);
-
   return 0;
 }
 
