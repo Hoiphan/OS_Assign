@@ -46,8 +46,8 @@ struct vm_area_struct *get_vma_by_num(struct mm_struct *mm, int vmaid)
     if(pvma == NULL)
 	  return NULL;
 
-    pvma = pvma->vm_next;
     vmait++;
+    pvma = pvma->vm_next;
   }
   return pvma;
 }
