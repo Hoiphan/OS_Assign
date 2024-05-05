@@ -2,7 +2,7 @@
 #include "cpu.h"
 #include "mem.h"
 #include "mm.h"
-
+#include "stdio.h"
 int calc(struct pcb_t * proc) {
 	return ((unsigned long)proc & 0UL);
 }
@@ -78,6 +78,7 @@ int run(struct pcb_t * proc) {
 		break;
 	case READ:
 #ifdef CPU_TLB
+    printf("read at cpu.c\n");
 		stat = tlbread(proc, ins.arg_0, ins.arg_1, ins.arg_2);
 #elif defined(MM_PAGING)
 		stat = pgread(proc, ins.arg_0, ins.arg_1, ins.arg_2);

@@ -22,6 +22,17 @@
 
 #define init_tlbcache(mp,sz,...) init_memphy(mp, sz, (1, ##__VA_ARGS__))
 
+#define TLB_SIZE 0x10000
+
+typedef struct
+{
+    int pid;
+    int pgn;
+    int fpn;
+} cache_line;
+static cache_line tlb_cache[TLB_SIZE];
+static int tlb_size = 0;
+
 /*
  *  tlb_cache_read read TLB cache device
  *  @mp: memphy struct
@@ -29,13 +40,33 @@
  *  @pgnum: page number
  *  @value: obtained value
  */
+#include"stdio.h"
 int tlb_cache_read(struct memphy_struct * mp, int pid, int pgnum, BYTE value)
 {
    /* TODO: the identify info is mapped to 
     *      cache line by employing:
     *      direct mapped, associated mapping etc.
     */
-   return 0;
+   struct mm_struct *mm = mp->used_fp_list->owner;
+   int pte = mm->pgd[pgnum];
+   for (int i = 0; i < TLB_SIZE; i++)
+      {
+         printf("1");
+        if (tlb_cache[i].pid == pid && tlb_cache[i].pgn == pgnum)
+         {
+            tlb_cache[i].fpn = PAGING_FPN(pte);
+            for (int i = 0; i < mp->maxsz; i++)
+            {
+               if (PAGING_PGN(i) == pgnum)
+               {
+                    TLBMEMPHY_read(mp, i, &value);
+                    break;
+               }
+            }
+            return 0;
+         }
+      }
+   return -1;
 }
 
 /*
@@ -51,7 +82,22 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
     *      cache line by employing:
     *      direct mapped, associated mapping etc.
     */
-   return 0;
+   tlb_cache[tlb_size].pid = pid;
+   tlb_cache[tlb_size].pgn = pgnum;
+   int pte = mp->used_fp_list->owner->pgd[pgnum];
+   tlb_cache[tlb_size].fpn = PAGING_FPN(pte);
+   tlb_size++;
+
+    // Ghi data vào frame có fpn tương ứng trong tlb MEMPHY
+    for (int i = 0; i < mp->maxsz; i++)
+    {
+        if (PAGING_PGN(i) == pgnum)
+        {
+            TLBMEMPHY_write(mp, i, value);
+            break;
+        }
+    }
+    return 0;
 }
 
 /*
@@ -100,7 +146,7 @@ int TLBMEMPHY_dump(struct memphy_struct * mp)
    /*TODO dump memphy contnt mp->storage 
     *     for tracing the memory content
     */
-
+   free(mp->storage);
    return 0;
 }
 
