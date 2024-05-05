@@ -51,7 +51,6 @@ int tlb_cache_read(struct memphy_struct * mp, int pid, int pgnum, BYTE value)
    int pte = mm->pgd[pgnum];
    for (int i = 0; i < TLB_SIZE; i++)
       {
-         printf("1");
         if (tlb_cache[i].pid == pid && tlb_cache[i].pgn == pgnum)
          {
             tlb_cache[i].fpn = PAGING_FPN(pte);
