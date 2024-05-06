@@ -59,7 +59,7 @@ int run(struct pcb_t * proc) {
 		stat = calc(proc);
 		break;
 	case ALLOC:
-#ifdef CPU_TLB 
+#ifdef CPU_TLB
 		stat = tlballoc(proc, ins.arg_0, ins.arg_1);
 #elif defined(MM_PAGING)
 		stat = pgalloc(proc, ins.arg_0, ins.arg_1);
@@ -78,7 +78,6 @@ int run(struct pcb_t * proc) {
 		break;
 	case READ:
 #ifdef CPU_TLB
-    printf("read at cpu.c\n");
 		stat = tlbread(proc, ins.arg_0, ins.arg_1, ins.arg_2);
 #elif defined(MM_PAGING)
 		stat = pgread(proc, ins.arg_0, ins.arg_1, ins.arg_2);
