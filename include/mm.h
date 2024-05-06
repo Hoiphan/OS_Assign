@@ -151,6 +151,7 @@ int find_victim_page(struct mm_struct* mm, int *pgn);
 struct vm_area_struct *get_vma_by_num(struct mm_struct *mm, int vmaid);
 
 /* MEM/PHY protypes */
+int MEMPHY_format(struct memphy_struct *mp, int pagesz);
 int MEMPHY_get_freefp(struct memphy_struct *mp, int *fpn);
 int MEMPHY_put_freefp(struct memphy_struct *mp, int fpn);
 int MEMPHY_read(struct memphy_struct * mp, int addr, BYTE *value);

@@ -15,7 +15,7 @@
 #include "mm.h"
 #include <stdlib.h>
 #include <stdio.h>
-
+#define TLB_SIZE 0x10000
 
 // int tlb_change_all_page_tables_of(struct pcb_t *proc,  struct memphy_struct * mp)
 // {
@@ -52,8 +52,17 @@ int tlballoc(struct pcb_t *proc, uint32_t size, uint32_t reg_index)
 
   /* TODO update TLB CACHED frame num of the new allocated page(s)*/
   /* by using tlb_cache_read()/tlb_cache_write()*/
-  tlb_cache_write(proc->tlb, proc->pid, reg_index, addr/PAGE_SIZE);
+  if(proc->tlb == NULL){
+    proc->tlb = (struct memphy_struct *)malloc(sizeof(struct memphy_struct));
+    init_tlbmemphy(proc->tlb,TLB_SIZE);
+    // struct framephy_struct *newft = malloc(sizeof(struct framephy_struct)); 
+    // newft->fp_next=NULL;
+    // proc->tlb->used_fp_list->fp_next = newft;
+    // proc->tlb->used_fp_list = newft;
+  }
 
+  tlb_cache_write(proc->tlb, proc->pid, reg_index, addr/PAGE_SIZE);
+  
   return val;
 }
 
@@ -69,7 +78,7 @@ int tlbfree_data(struct pcb_t *proc, uint32_t reg_index)
   /* TODO update TLB CACHED frame num of freed page(s)*/
   /* by using tlb_cache_read()/tlb_cache_write()*/
   tlb_cache_write(proc->tlb, proc->pid, reg_index, 0);
-
+  
 
   return 0;
 }
@@ -164,6 +173,7 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
     /* TODO update TLB CACHED with frame num of recent accessing page(s)*/
     /* by using tlb_cache_read()/tlb_cache_write()*/
 
+    tlb_cache_write(proc->tlb, pid, pgnum, data);
     return val;
 }
 

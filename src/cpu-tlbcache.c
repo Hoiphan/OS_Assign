@@ -19,7 +19,7 @@
 
 #include "mm.h"
 #include <stdlib.h>
-
+#include<stdio.h>
 #define init_tlbcache(mp,sz,...) init_memphy(mp, sz, (1, ##__VA_ARGS__))
 
 #define TLB_SIZE 0x10000
@@ -43,28 +43,38 @@ static int tlb_size = 0;
 #include"stdio.h"
 int tlb_cache_read(struct memphy_struct * mp, int pid, int pgnum, BYTE value)
 {
-   /* TODO: the identify info is mapped to 
+      /* TODO: the identify info is mapped to 
     *      cache line by employing:
     *      direct mapped, associated mapping etc.
     */
-   struct mm_struct *mm = mp->used_fp_list->owner;
-   int pte = mm->pgd[pgnum];
-   for (int i = 0; i < TLB_SIZE; i++)
-      {
-        if (tlb_cache[i].pid == pid && tlb_cache[i].pgn == pgnum)
-         {
-            tlb_cache[i].fpn = PAGING_FPN(pte);
-            for (int i = 0; i < mp->maxsz; i++)
-            {
-               if (PAGING_PGN(i) == pgnum)
-               {
-                    TLBMEMPHY_read(mp, i, &value);
-                    break;
-               }
-            }
-            return 0;
-         }
+   //struct mm_struct *mm = mp->used_fp_list->owner;
+   // if(mp->used_fp_list == NULL) {
+   //    mp->used_fp_list = (struct framephy_struct *)malloc(sizeof(struct framephy_struct));
+   // }
+   // int pte = mm->pgd[pgnum];
+   // for (int i = 0; i < TLB_SIZE; i++)
+   //    {
+   //      if (tlb_cache[i].pid == pid && tlb_cache[i].pgn == pgnum)
+   //       {
+   //          tlb_cache[i].fpn = PAGING_FPN(pte);
+   //          for (int i = 0; i < mp->maxsz; i++)
+   //          {
+   //             if (PAGING_PGN(i) == pgnum)
+   //             {
+   //                  TLBMEMPHY_read(mp, i, &value);
+   //                  break;
+   //             }
+   //          }
+   //          return 0;
+   //       }
+   //    }
+   for(int i=0; i<TLB_SIZE; i++){
+      if(tlb_cache[i].pid==pid && tlb_cache[i].pgn==pgnum){
+         value = mp->storage[i];
+         return 0;
       }
+   }
+
    return -1;
 }
 
@@ -81,22 +91,31 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
     *      cache line by employing:
     *      direct mapped, associated mapping etc.
     */
-   tlb_cache[tlb_size].pid = pid;
-   tlb_cache[tlb_size].pgn = pgnum;
-   int pte = mp->used_fp_list->owner->pgd[pgnum];
-   tlb_cache[tlb_size].fpn = PAGING_FPN(pte);
-   tlb_size++;
+   // tlb_cache[tlb_size].pid = pid;
+   // tlb_cache[tlb_size].pgn = pgnum;
+   // tlb_size++;
 
     // Ghi data vào frame có fpn tương ứng trong tlb MEMPHY
-    for (int i = 0; i < mp->maxsz; i++)
-    {
-        if (PAGING_PGN(i) == pgnum)
-        {
-            TLBMEMPHY_write(mp, i, value);
-            break;
-        }
-    }
-    return 0;
+   //  for (int i = 0; i < mp->maxsz; i++)
+   //  {
+   //      if (PAGING_PGN(i) == pgnum)
+   //      {
+   //          TLBMEMPHY_write(mp, i, value);
+   //          break;
+   //      }
+   //  }
+   //  return 0;
+   for(int i=0; i<TLB_SIZE; i++){
+      if(tlb_cache[i].pid==pid && tlb_cache[i].pgn==pgnum){
+         mp->storage[i] = value;
+         return 0;
+      }
+   }
+   tlb_cache[tlb_size].pid=pid;
+   tlb_cache[tlb_size].pgn=pgnum;
+   tlb_size++;
+   return -1;
+
 }
 
 /*
@@ -159,6 +178,11 @@ int init_tlbmemphy(struct memphy_struct *mp, int max_size)
    mp->maxsz = max_size;
 
    mp->rdmflg = 1;
+
+   mp->used_fp_list = (struct framephy_struct *)malloc(sizeof(struct framephy_struct));
+   mp->used_fp_list->fp_next = NULL;
+   mp->used_fp_list->fpn = 0;
+   mp->used_fp_list->owner = (struct mm_struct *)malloc(sizeof(struct mm_struct));
 
    return 0;
 }
